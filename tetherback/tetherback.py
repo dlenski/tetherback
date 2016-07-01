@@ -126,8 +126,8 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     if mmcblks is None:
         mmcblks = adb.check_output(('shell','cd /sys/block; ls mmcblk*')).splitlines()
     for mmcblk in mmcblks:
-        d = uevent_dict(adb, '/sys/block/%s/uevent' % m)
-        nparts = int(d.get('NPARTS'),0)
+        d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
+        nparts = int(d.get('NPARTS',0))
         print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage(), ' ', ETA()]).start()
         for ii in range(1, nparts+1):
