@@ -9,7 +9,7 @@ import subprocess as sp
 import os, sys, datetime, socket, time, argparse, re
 from sys import stderr
 from base64 import standard_b64decode as b64dec
-from progressbar import ProgressBar, Percentage, ETA, FileTransferSpeed, DataSize
+from progressbar import ProgressBar, Percentage, FileTransferSpeed, DataSize
 from tabulate import tabulate
 from enum import Enum
 from hashlib import md5
@@ -126,7 +126,7 @@ def build_partmap(adb, mmcblk='mmcblk0', fstab='/etc/fstab'):
     d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
     nparts = int(d['NPARTS'])
     print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
-    pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage(), ' ', ETA()]).start()
+        pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
     for ii in range(1, nparts+1):
         d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
         devname, partn = d['DEVNAME'], int(d['PARTN'])
@@ -245,7 +245,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         s.connect(('localhost', port))
         block_iter = iter(lambda: s.recv(65536), b'')
 
-    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', ETA(), ' ', FileTransferSpeed(), ' ', DataSize() ]
+    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
     pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
 
     with open(bp.fn, 'wb') as out:
