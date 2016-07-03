@@ -187,7 +187,6 @@ def create_backupdir(args, timestamp=None):
 
     btype = 'nandroid' if args.nandroid else 'twrp'
     backupdir = os.path.join(args.output_path, btype + '-backup-' + timestamp.strftime('%Y-%m-%d--%H-%M-%S'))
-    print("Saving backup images in %s/ ..." % backupdir, file=stderr)
 
     if not os.path.exists(args.output_path):
        os.mkdir(args.output_path)
