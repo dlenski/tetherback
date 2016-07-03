@@ -55,7 +55,8 @@ def parse_args(args=None):
     g.add_argument('-U', '--no-userdata', dest='userdata', action='store_false', default=True, help="Omit /data partition from backup")
     g.add_argument('-S', '--no-system', dest='system', action='store_false', default=True, help="Omit /system partition from backup")
     g.add_argument('-B', '--no-boot', dest='boot', action='store_false', default=True, help="Omit boot partition from backup")
-    g.add_argument('-X', '--extra', action='append', dest='extra', metavar='NAME', default=[], help="Include extra partition as raw image")
+    g.add_argument('-X', '--extra', action='append', metavar='NAME', default=[], help="Include extra partition (as a tarball if this partition is mountable and TWRP backup type is chosen, otherwise as raw image)")
+    g.add_argument('--extra-raw', action='append', metavar='NAME', default=[], help="Include extra partition (always as raw image)")
     return p, p.parse_args(args)
 
 def check_adb_version(p, adb):
@@ -156,16 +157,22 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     else:
         return partmap
 
-def plan_backup(args):
+def plan_backup(args, partmap):
     # Build table of partitions requested for backup
     if args.nandroid:
-        rp = args.extra + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
+        rp = args.extra + args.extra_raw + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.tar.gz'%p, None)) for p in rp)
     else:
-        rp = args.extra + [x for x in ('boot','recovery') if getattr(args, x)]
+        # Figure out which of the --extra partitions can't actually be mounted and exile them to --extra-raw
+        extra_raw = args.extra_raw
+        extra_mount = []
+        for p in args.extra:
+            (extra_mount if p in partmap and partmap[p].fstype else extra_raw).append(p)
+
+        rp = extra_raw + [x for x in ('boot','recovery') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.emmc.win'%p, None)) for p in rp)
-        mp = [x for x in ('cache','system') if getattr(args, x)]
-        plan.update((p,BackupPlan('%s.ext4.win'%p, '-p')) for p in mp)
+        mp = extra_mount + [x for x in ('cache','system') if getattr(args, x)]
+        plan.update((p,BackupPlan('%s.%s.win'%(p, partmap[p].fstype), '-p')) for p in mp)
 
         if args.userdata:
             data_omit = []
@@ -289,7 +296,7 @@ def main(args=None):
 
     # build partition map and backup plan
     partmap = build_partmap(adb)
-    plan = plan_backup(args)
+    plan = plan_backup(args, partmap)
     missing = set(plan) - set(partmap)
 
     # print partition map and backup explanation

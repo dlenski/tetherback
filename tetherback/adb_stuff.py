@@ -1,20 +1,31 @@
 from sys import stderr
 import time
 
-def really_mount(adb, dev, node, mode='ro'):
-    for opts in (mode, 'remount,'+mode):
-        if adb.check_output(('shell','mount -o %s %s %s 2>/dev/null && echo ok' % (opts, dev, node))).strip():
-            break
+def find_mount(adb, dev, node):
     for l in adb.check_output(('shell','mount')).splitlines():
         f = l.split()
         if not l:
             pass
-        elif len(f)<4:
-            print( "WARNING: don't understand output from mount: %s" % (repr(l)), file=stderr )
         else:
-            mdev, mnode, mtype = (f[0], f[2], f[4]) if (f[1], f[3])==('on','type') else (f[0], f[1], f[2])
-            if mdev==dev or mnode==node:
-                return mtype
+            # Some systems have `mount` output lines that look like:
+            #    /dev/node on /filesystem/mountpoint type fstype (options)
+            # ... while others look like this:
+            #    /dev/node /filesystem/mountpoint fstype options
+            if len(f)<3:
+                print( "WARNING: don't understand output from mount: %s" % (repr(l)), file=stderr )
+            else:
+                mdev, mnode, mtype = (f[0], f[2], f[4]) if len(f)>=5 else f[:3]
+                if mdev==dev or mnode==node:
+                    return (mdev, mnode, mtype)
+    else:
+        return (None, None, None)
+
+def really_mount(adb, dev, node, mode='ro'):
+    for opts in (mode, 'remount,'+mode):
+        if adb.check_output(('shell','mount -o %s %s %s 2>/dev/null && echo ok' % (opts, dev, node))).strip():
+            break
+    mdev, mnode, mtype = find_mount(adb, dev, node)
+    return mtype
 
 def really_umount(adb, dev, node):
     for opts in ('','-f','-l','-r'):
@@ -22,17 +33,8 @@ def really_umount(adb, dev, node):
             break
         if adb.check_output(('shell','umount %s 2>/dev/null && echo ok' % node)).strip():
             break
-    for l in adb.check_output(('shell','mount')).splitlines():
-        f = l.split()
-        if not l:
-            pass
-        elif len(f)<4:
-            print( "WARNING: don't understand output from mount: %s" % (repr(l)), file=stderr )
-        else:
-            mdev, mnode = (f[0], f[2]) if (f[1], f[3])==('on','type') else (f[0], f[1])
-            if mdev==dev or mnode==node:
-                return False
-    return True
+    mdev, mnode, mtype = find_mount(adb, dev, node)
+    return (mtype==None)
 
 def really_forward(adb, port1, port2):
     for port in range(port1, port2):
