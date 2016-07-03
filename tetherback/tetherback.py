@@ -119,37 +119,41 @@ def sensible_transport(transport, adbversion):
             return adbxp.tcp
     return transport
 
-def build_partmap(adb, mmcblk='mmcblk0', fstab='/etc/fstab'):
+def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     # build partition map
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
-    d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
-    nparts = int(d['NPARTS'])
-    print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
+    if mmcblks is None:
+        mmcblks = adb.check_output(('shell','cd /sys/block; ls -1d mmcblk*')).splitlines()
+    for mmcblk in mmcblks:
+        d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
+        nparts = int(d.get('NPARTS',0))
+        print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
-    for ii in range(1, nparts+1):
-        d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
-        devname, partn = d['DEVNAME'], int(d['PARTN'])
-        size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
-        mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
+        for ii in range(1, nparts+1):
+            d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
+            devname, partn = d['DEVNAME'], int(d['PARTN'])
+            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
+            mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
 
-        # some devices have uppercase names, see #14
-        partname = d['PARTNAME'].lower()
+            # some devices have uppercase names, see #14
+            partname = d['PARTNAME'].lower()
 
-        # some devices apparently use non-standard partition names, though standard mount points, see #18
-        if partname=='system' or mountpoint=='/system':
-            standard = 'system'
-        elif partname=='userdata' or mountpoint=='/data':
-            standard = 'userdata'
-        elif partname=='cache' or mountpoint=='/cache':
-            standard = 'cache'
+            # some devices apparently use non-standard partition names, though standard mount points, see #18
+            if partname=='system' or mountpoint=='/system':
+                standard = 'system'
+            elif partname=='userdata' or mountpoint=='/data':
+                standard = 'userdata'
+            elif partname=='cache' or mountpoint=='/cache':
+                standard = 'cache'
+            else:
+                standard = partname
+
+            partmap[standard] = PartInfo(partname, devname, partn, size, mountpoint, fstype)
+            pbar.update(ii)
         else:
-            standard = partname
-
-        partmap[standard] = PartInfo(partname, devname, partn, size, mountpoint, fstype)
-        pbar.update(ii)
+            pbar.finish()
     else:
-        pbar.finish()
         return partmap
 
 def plan_backup(args):
