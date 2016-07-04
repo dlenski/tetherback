@@ -156,7 +156,7 @@ def plan_backup(args):
     # Build table of partitions requested for backup
     if args.nandroid:
         rp = args.extra + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
-        plan = odict((p,BackupPlan('%s.tar.gz'%p, None)) for p in rp)
+        plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
     else:
         rp = args.extra + [x for x in ('boot','recovery') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.emmc.win'%p, None)) for p in rp)
@@ -187,7 +187,6 @@ def create_backupdir(args, timestamp=None):
 
     btype = 'nandroid' if args.nandroid else 'twrp'
     backupdir = os.path.join(args.output_path, btype + '-backup-' + timestamp.strftime('%Y-%m-%d--%H-%M-%S'))
-    print("Saving backup images in %s/ ..." % backupdir, file=stderr)
 
     if not os.path.exists(args.output_path):
        os.mkdir(args.output_path)

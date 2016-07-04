@@ -1,4 +1,5 @@
-from . import adb_wrapper
+from sys import stderr
+import time
 
 def really_mount(adb, dev, node, mode='ro'):
     for opts in (mode, 'remount,'+mode):
