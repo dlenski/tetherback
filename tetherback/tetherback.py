@@ -215,64 +215,87 @@ def backup_partition(adb, pi, bp, transport, verify=True):
             raise RuntimeError('%s: could not unmount %s' % (pi.partname, pi.mountpoint))
         cmdline = 'dd if=/dev/block/%s 2> /dev/null | gzip -f' % pi.devname
 
+    cmdline = '(%s & echo $! > /tmp/copypid; wait $!; rm /tmp/copypid 2> /dev/null)' % cmdline
+
     if verify:
         cmdline = 'md5sum /tmp/md5in > /tmp/md5out & %s | tee /tmp/md5in' % cmdline
         localmd5 = md5()
 
-    if transport == adbxp.pipe_bin:
-        # need stty -onlcr to make adb-shell an 8-bit-clean pipe: http://stackoverflow.com/a/20141481/20789
-        child = adb.pipe_out(('shell','stty -onlcr && '+cmdline))
-        block_iter = iter(lambda: child.stdout.read(65536), b'')
-    elif transport == adbxp.pipe_b64:
-        # pipe output through base64: excruciatingly slow
-        child = adb.pipe_out(('shell',cmdline+'| base64'))
-        block_iter = iter(lambda: b64dec(b''.join(child.stdout.readlines(65536))), b'')
-    elif transport == adbxp.pipe_xo:
-        # use adb exec-out, which is
-        # (a) only available with newer versions of adb on the host, and
-        # (b) only works with newer versions of TWRP (works with 2.8.0 for @kerlerm)
-        # https://plus.google.com/110558071969009568835/posts/Ar3FdhknHo3
-        # https://android.googlesource.com/platform/system/core/+/5d9d434efadf1c535c7fea634d5306e18c68ef1f/adb/commandline.c#1244
-        child = adb.pipe_out(('exec-out',cmdline))
-        block_iter = iter(lambda: child.stdout.read(65536), b'')
-    else:
-        port = really_forward(adb, 5600+pi.partn, 5700+pi.partn)
-        if not port:
-            raise RuntimeError('%s: could not ADB-forward a TCP port')
-        child = adb.pipe_out(('shell',cmdline + '| nc -l -p%d -w3'%port))
-
-        # FIXME: need a better way to check that socket is ready to transmit
-        time.sleep(1)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('localhost', port))
-        block_iter = iter(lambda: s.recv(65536), b'')
-
-    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', ETA(), ' ', FileTransferSpeed(), ' ', DataSize() ]
-    pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
-
-    with open(bp.fn, 'wb') as out:
-        for block in block_iter:
-            out.write(block)
-            if verify:
-                localmd5.update(block)
-            pbar.update(out.tell())
+    child = port = None
+    try:
+        if transport == adbxp.pipe_bin:
+            # need stty -onlcr to make adb-shell an 8-bit-clean pipe: http://stackoverflow.com/a/20141481/20789
+            child = adb.pipe_out(('shell','stty -onlcr && '+cmdline))
+            block_iter = iter(lambda: child.stdout.read(65536), b'')
+        elif transport == adbxp.pipe_b64:
+            # pipe output through base64: excruciatingly slow
+            child = adb.pipe_out(('shell',cmdline+'| base64'))
+            block_iter = iter(lambda: b64dec(b''.join(child.stdout.readlines(65536))), b'')
+        elif transport == adbxp.pipe_xo:
+            # use adb exec-out, which is
+            # (a) only available with newer versions of adb on the host, and
+            # (b) only works with newer versions of TWRP (works with 2.8.0 for @kerlerm)
+            # https://plus.google.com/110558071969009568835/posts/Ar3FdhknHo3
+            # https://android.googlesource.com/platform/system/core/+/5d9d434efadf1c535c7fea634d5306e18c68ef1f/adb/commandline.c#1244
+            child = adb.pipe_out(('exec-out',cmdline))
+            block_iter = iter(lambda: child.stdout.read(65536), b'')
         else:
-            pbar.max_value = out.tell() or pbar.max_value # need to adjust for the smaller compressed size
-            pbar.finish()
+            port = really_forward(adb, 5600+pi.partn, 5700+pi.partn)
+            if not port:
+                raise RuntimeError('%s: could not ADB-forward a TCP port')
+            child = adb.pipe_out(('shell',cmdline + '| nc -l -p%d -w3'%port))
 
-    if verify:
-        devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
-        localmd5 = localmd5.hexdigest()
-        if devicemd5 != localmd5:
-            raise RuntimeError("md5sum mismatch (local %s, device %s)" % (localmd5, devicemd5))
-        with open(bp.fn+'.md5', 'w') as md5out:
-            print('%s *%s' % (localmd5, bp.fn), file=md5out)
+            # FIXME: need a better way to check that socket is ready to transmit
+            time.sleep(1)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(('localhost', port))
+            block_iter = iter(lambda: s.recv(65536), b'')
 
-    child.wait()
-    if transport==adbxp.tcp:
-        s.close()
-        if not really_unforward(adb, port):
-            raise RuntimeError('could not remove ADB-forward for TCP port %d' % port)
+        pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', ETA(), ' ', FileTransferSpeed(), ' ', DataSize() ]
+        pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
+
+        with open(bp.fn, 'wb') as out:
+            for block in block_iter:
+                out.write(block)
+                if verify:
+                    localmd5.update(block)
+                pbar.update(out.tell())
+            else:
+                pbar.max_value = out.tell() or pbar.max_value # need to adjust for the smaller compressed size
+                pbar.finish()
+
+        if verify:
+            devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
+            localmd5 = localmd5.hexdigest()
+            if devicemd5 != localmd5:
+                raise RuntimeError("md5sum mismatch (local %s, device %s)" % (localmd5, devicemd5))
+            with open(bp.fn+'.md5', 'w') as md5out:
+                print('%s *%s' % (localmd5, bp.fn), file=md5out)
+
+    except (Exception, KeyboardInterrupt) as e:
+        print("\nCaught %s! Trying to stop cleanly ..." % e.__class__.__name__, file=stderr)
+        if child:
+            try:
+                copypid = adb.check_output(('shell','cat /tmp/copypid 2> /dev/null')).strip()
+                if copypid:
+                    if adb.check_output(('shell','kill %s 2> /dev/null && echo ok' % copypid)).strip():
+                        print("Success: killed copy process on device. (pid %s)" % copypid)
+                    else:
+                        print("Failed: could not kill copy process on device! (pid %s)" % copypid)
+                        child.kill()
+                else:
+                    print("Failed: could not stop cleanly!")
+            except sp.CalledProcessError:
+                print("Failed: could not stop cleanly!")
+        raise
+
+    finally:
+        if child:
+            child.wait()
+        if transport==adbxp.tcp and port:
+            s.close()
+            if not really_unforward(adb, port):
+                raise RuntimeError('could not remove ADB-forward for TCP port %d' % port)
 
 ########################################
 
@@ -311,6 +334,9 @@ def main(args=None):
 
     # Okay, now it's time to actually... back up the partitions!
     for standard, bp in plan.items():
-        backup_partition(adb, partmap[standard], bp, args.transport, args.verify)
+        try:
+            backup_partition(adb, partmap[standard], bp, args.transport, args.verify)
+        except BaseException as e:
+            p.exit("Backup failed due to %s" % e.__class__.__name__)
 
     print("Backup complete.", file=stderr)
