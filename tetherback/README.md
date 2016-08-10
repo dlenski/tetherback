@@ -78,7 +78,7 @@ List of devices attached
   `<label>.img.gz`):
 
     ```bash
-    $ tetherback -n
+    $ tetherback -N
     Device reports TWRP kernel (3.4.0-bricked-hammerhead-twrp-g7b77eb4).
     Reading partition map for mmcblk0 (29 partitions)...
       partition map: 100% Time: 0:00:03
