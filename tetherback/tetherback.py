@@ -9,12 +9,13 @@ import subprocess as sp
 import os, sys, datetime, socket, time, argparse, re
 from sys import stderr
 from base64 import standard_b64decode as b64dec
-from progressbar import ProgressBar, Percentage, ETA, FileTransferSpeed, DataSize
+from progressbar import ProgressBar, Percentage, FileTransferSpeed, DataSize
 from tabulate import tabulate
 from enum import Enum
 from hashlib import md5
 from collections import namedtuple, OrderedDict as odict
 
+from .version import __version__
 from .adb_wrapper import AdbWrapper
 from .adb_stuff import *
 
@@ -29,6 +30,8 @@ Please post the entire output from tetherback!"""
 
 def parse_args(args=None):
     p = argparse.ArgumentParser(description='''Tool to create TWRP and nandroid-style backups of an Android device running TWRP recovery, using adb-over-USB, without touching the device's internal storage or SD card.''')
+    p.version=__version__
+    p.add_argument('--version', action='version')
     p.add_argument('-s', dest='specific', metavar='DEVICE_ID', default=None, help="Specific device ID (shown by adb devices). Default is sole USB-connected device.")
     p.add_argument('-o', '--output-path', default=".", help="Set optional output path for backup files.")
     p.add_argument('-N', '--nandroid', action='store_true', help="Make nandroid backup; raw images rather than tarballs for /system and /data partitions (default is TWRP backup)")
@@ -55,7 +58,8 @@ def parse_args(args=None):
     g.add_argument('-U', '--no-userdata', dest='userdata', action='store_false', default=True, help="Omit /data partition from backup")
     g.add_argument('-S', '--no-system', dest='system', action='store_false', default=True, help="Omit /system partition from backup")
     g.add_argument('-B', '--no-boot', dest='boot', action='store_false', default=True, help="Omit boot partition from backup")
-    g.add_argument('-X', '--extra', action='append', dest='extra', metavar='NAME', default=[], help="Include extra partition as raw image")
+    g.add_argument('-X', '--extra', action='append', metavar='NAME', default=[], help="Include extra partition (as a tarball if this partition is mountable and TWRP backup type is chosen, otherwise as raw image)")
+    g.add_argument('--extra-raw', action='append', metavar='NAME', default=[], help="Include extra partition (always as raw image)")
     return p, p.parse_args(args)
 
 def check_adb_version(p, adb):
@@ -119,49 +123,59 @@ def sensible_transport(transport, adbversion):
             return adbxp.tcp
     return transport
 
-def build_partmap(adb, mmcblk='mmcblk0', fstab='/etc/fstab'):
+def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     # build partition map
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
-    d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
-    nparts = int(d['NPARTS'])
-    print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
-    pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage(), ' ', ETA()]).start()
-    for ii in range(1, nparts+1):
-        d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
-        devname, partn = d['DEVNAME'], int(d['PARTN'])
-        size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
-        mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
+    if mmcblks is None:
+        mmcblks = adb.check_output(('shell','cd /sys/block; ls -1d mmcblk*')).splitlines()
+    for mmcblk in mmcblks:
+        d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
+        nparts = int(d.get('NPARTS',0))
+        print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
+        pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
+        for ii in range(1, nparts+1):
+            d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
+            devname, partn = d['DEVNAME'], int(d['PARTN'])
+            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
+            mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
 
-        # some devices have uppercase names, see #14
-        partname = d['PARTNAME'].lower()
+            # some devices have uppercase names, see #14
+            partname = d['PARTNAME'].lower()
 
-        # some devices apparently use non-standard partition names, though standard mount points, see #18
-        if partname=='system' or mountpoint=='/system':
-            standard = 'system'
-        elif partname=='userdata' or mountpoint=='/data':
-            standard = 'userdata'
-        elif partname=='cache' or mountpoint=='/cache':
-            standard = 'cache'
+            # some devices apparently use non-standard partition names, though standard mount points, see #18
+            if partname=='system' or mountpoint=='/system':
+                standard = 'system'
+            elif partname=='userdata' or mountpoint=='/data':
+                standard = 'userdata'
+            elif partname=='cache' or mountpoint=='/cache':
+                standard = 'cache'
+            else:
+                standard = partname
+
+            partmap[standard] = PartInfo(partname, devname, partn, size, mountpoint, fstype)
+            pbar.update(ii)
         else:
-            standard = partname
-
-        partmap[standard] = PartInfo(partname, devname, partn, size, mountpoint, fstype)
-        pbar.update(ii)
+            pbar.finish()
     else:
-        pbar.finish()
         return partmap
 
-def plan_backup(args):
+def plan_backup(args, partmap):
     # Build table of partitions requested for backup
     if args.nandroid:
-        rp = args.extra + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
+        rp = args.extra + args.extra_raw + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
     else:
-        rp = args.extra + [x for x in ('boot','recovery') if getattr(args, x)]
+        # Figure out which of the --extra partitions can't actually be mounted and exile them to --extra-raw
+        extra_raw = args.extra_raw
+        extra_mount = []
+        for p in args.extra:
+            (extra_mount if p in partmap and partmap[p].fstype else extra_raw).append(p)
+
+        rp = extra_raw + [x for x in ('boot','recovery') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.emmc.win'%p, None)) for p in rp)
-        mp = [x for x in ('cache','system') if getattr(args, x)]
-        plan.update((p,BackupPlan('%s.ext4.win'%p, '-p')) for p in mp)
+        mp = extra_mount + [x for x in ('cache','system') if getattr(args, x)]
+        plan.update((p,BackupPlan('%s.%s.win'%(p, partmap[p].fstype), '-p')) for p in mp)
 
         if args.userdata:
             data_omit = []
@@ -244,7 +258,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         s.connect(('localhost', port))
         block_iter = iter(lambda: s.recv(65536), b'')
 
-    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', ETA(), ' ', FileTransferSpeed(), ' ', DataSize() ]
+    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
     pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
 
     with open(bp.fn, 'wb') as out:
@@ -275,7 +289,9 @@ def backup_partition(adb, pi, bp, transport, verify=True):
 
 def main(args=None):
     p, args = parse_args(args)
-    adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',))
+    adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
+
+    print('%s v%s' % (p.prog, p.version), file=stderr)
 
     # check adb version, and TWRP recovery
     adbversion = check_adb_version(p, adb)
@@ -284,7 +300,7 @@ def main(args=None):
 
     # build partition map and backup plan
     partmap = build_partmap(adb)
-    plan = plan_backup(args)
+    plan = plan_backup(args, partmap)
     missing = set(plan) - set(partmap)
 
     # print partition map and backup explanation

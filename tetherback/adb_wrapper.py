@@ -1,14 +1,16 @@
+from sys import stderr
 import subprocess as sp
 import re
 
 class AdbWrapper(object):
-    def __init__(self, adbbin='adb', devsel=()):
+    def __init__(self, adbbin='adb', devsel=(), debug=None):
         self.adbbin = adbbin
         self.devsel = tuple(devsel)
+        self.debug = debug
 
     def get_version(self):
          try:
-             s, output = sp.getstatusoutput(self.adbcmd('version'))
+             s, output = sp.getstatusoutput(self.adbcmd(('version',)))
          except FileNotFoundError:
              raise
          except sp.CalledProcessError:
@@ -23,11 +25,17 @@ class AdbWrapper(object):
          return adbversions, adbversion
 
     def adbcmd(self, adbargs):
-        return (self.adbbin,) + self.devsel + tuple(adbargs)
+        args = (self.adbbin,) + self.devsel + tuple(adbargs)
+        if self.debug:
+            print("ADB: %s"%repr(args), file=stderr)
+        return args
 
     def check_output(self, adbargs, **kwargs):
         un = kwargs.pop('universal_newlines', True)
         return sp.check_output(self.adbcmd(adbargs), universal_newlines=un, **kwargs)
+
+    def pipe_in(self, adbargs, **kwargs):
+        return sp.Popen(self.adbcmd(adbargs), stdin=sp.PIPE, **kwargs)
 
     def pipe_out(self, adbargs, **kwargs):
         return sp.Popen(self.adbcmd(adbargs), stdout=sp.PIPE, **kwargs)

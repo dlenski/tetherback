@@ -60,17 +60,21 @@ List of devices attached
   and `data.ext4.win`:
 
     ```bash
-    $ tetherback
-    Device reports TWRP kernel (3.4.0-bricked-hammerhead-twrp-g7b77eb4).
+    Found ADB version 1.0.32
+    Using default transfer method: adb exec-out pipe (--exec-out)
+    Device reports kernel 3.4.0-bricked-hammerhead-twrp-g7b77eb4
+    Device reports TWRP version 3.0.0-0
     Reading partition map for mmcblk0 (29 partitions)...
-      partition map: 100% Time: 0:00:03
-    Saving backup images in twrp-backup-2016-03-17--17-44-04/ ...
+      partition map: 100%
+    Reading partition map for mmcblk0rpmb (0 partitions)...
+      partition map: 100%
+    Saving backup images in ./twrp-backup-2016-07-03--14-53-29/ ...
     Saving partition boot (mmcblk0p19), 22 MiB uncompressed...
-      boot.emmc.win: 100% Time: 0:00:05   3.04 MB/s
+      boot.emmc.win: 100%   4.0 MiB/s  16.3 MiB
     Saving tarball of mmcblk0p25 (mounted at /system), 1024 MiB uncompressed...
-      system.ext4.win: 100% Time: 0:02:16   2.29 MB/s
+      system.ext4.win: 100%   2.5 MiB/s 299.7 MiB
     Saving tarball of mmcblk0p28 (mounted at /data), 13089 MiB uncompressed...
-      data.ext4.win: 100% Time: 0:05:38   2.60 MB/s
+      data.ext4.win: 100%   2.0 MiB/s 804.0 MiB
     ```
 
 * Make a "nandroid"-style backup over ADB. This saves gzipped images
@@ -78,24 +82,32 @@ List of devices attached
   `<label>.img.gz`):
 
     ```bash
-    $ tetherback -n
-    Device reports TWRP kernel (3.4.0-bricked-hammerhead-twrp-g7b77eb4).
+    $ tetherback -N
+    Found ADB version 1.0.32
+    Using default transfer method: adb exec-out pipe (--exec-out)
+    Device reports kernel 3.4.0-bricked-hammerhead-twrp-g7b77eb4
+    Device reports TWRP version 3.0.0-0
     Reading partition map for mmcblk0 (29 partitions)...
       partition map: 100% Time: 0:00:03
-    Saving backup images in nandroid-backup-2016-03-17--18-15-03/ ...
+    Reading partition map for mmcblk0rpmb (0 partitions)...
+      partition map: 100%
+    Saving backup images in nandroid-backup-2016-07-03--18-15-03/ ...
     Saving partition boot (mmcblk0p19), 22 MiB uncompressed...
-      mmcblk0p19: 100% Time: 0:00:05   3.07 MB/s
+      mmcblk0p19: 100%   3.07 MB/s  16.3 MiB
     Saving partition system (mmcblk0p25), 1024 MiB uncompressed...
-      mmcblk0p25: 100% Time: 0:03:05   1.76 MB/s
+      mmcblk0p25: 100%   1.76 MB/s  343.7 MiB
     Saving partition userdata (mmcblk0p28), 13089 MiB uncompressed...
-      mmcblk0p28: 100% Time: 0:40:04   1.80 MB/s
+      mmcblk0p28: 100%   1.80 MB/s  6.4 GiB
     ```
 
 ### Additional options
 
-* Extra partitions can be included (as raw images) with the `-X`/`--extra`
-  option; for example, `-X modemst1 -X modemst2` to backup the
+* Extra partitions can be included with the `-X`/`--extra` and `--extra-raw`
+  options; for example, `-X modemst1 -X modemst2` to backup the
   [Nexus 5 EFS partitions](http://forum.xda-developers.com/google-nexus-5/development/modem-nexus-5-flashable-modems-efs-t2514095).
+
+    * With `--extra-raw`, the extra partition will *always* be saved as a raw image, rather than as a tarball, even if it is a
+      mountable filesystem and tetherback is run in TWRP backup mode.
 
 * The partition map and backup plan will be printed with
   `-v`/`--verbose` (or use `-0`/`--dry-run` to **only** print it, and
