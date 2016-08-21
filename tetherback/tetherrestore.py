@@ -5,7 +5,7 @@
 from progressbar import ProgressBar, Percentage, FileTransferSpeed, DataSize
 from hashlib import md5
 
-from .adb_wrapper import AdbWrapper
+from .adb_wrapper import AdbWrapper, PIPE
 from .adb_stuff import *
 
 from .tetherback import adbxp, PartInfo, BackupPlan, please_report
@@ -42,7 +42,7 @@ def restore_partition(adb, pi, bp, transport, verify=True):
         # use adb exec-in, which is
         # (a) only available with newer versions of adb on the host, and
         # (b) only works with newer versions of TWRP (works with 3.0.0 for me)
-        child = adb.pipe_in(('exec-in',cmdline))
+        child = adb.pipe(('exec-in',cmdline), stdin=PIPE)
         block_dest = child.stdin
     else:
         # FIXME: can we use adb-reverse for this?

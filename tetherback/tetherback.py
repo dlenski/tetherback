@@ -16,7 +16,7 @@ from hashlib import md5
 from collections import namedtuple, OrderedDict as odict
 
 from .version import __version__
-from .adb_wrapper import AdbWrapper
+from .adb_wrapper import AdbWrapper, PIPE
 from .adb_stuff import *
 
 adbxp = Enum('AdbTransport', 'tcp pipe_xo pipe_b64 pipe_bin')
@@ -232,11 +232,11 @@ def backup_partition(adb, pi, bp, transport, verify=True):
 
     if transport == adbxp.pipe_bin:
         # need stty -onlcr to make adb-shell an 8-bit-clean pipe: http://stackoverflow.com/a/20141481/20789
-        child = adb.pipe_out(('shell','stty -onlcr && '+cmdline))
+        child = adb.pipe(('shell','stty -onlcr && '+cmdline), stdout=PIPE)
         block_iter = iter(lambda: child.stdout.read(65536), b'')
     elif transport == adbxp.pipe_b64:
         # pipe output through base64: excruciatingly slow
-        child = adb.pipe_out(('shell',cmdline+'| base64'))
+        child = adb.pipe(('shell',cmdline+'| base64'), stdout=PIPE)
         block_iter = iter(lambda: b64dec(b''.join(child.stdout.readlines(65536))), b'')
     elif transport == adbxp.pipe_xo:
         # use adb exec-out, which is
@@ -244,7 +244,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         # (b) only works with newer versions of TWRP (works with 2.8.0 for @kerlerm)
         # https://plus.google.com/110558071969009568835/posts/Ar3FdhknHo3
         # https://android.googlesource.com/platform/system/core/+/5d9d434efadf1c535c7fea634d5306e18c68ef1f/adb/commandline.c#1244
-        child = adb.pipe_out(('exec-out',cmdline))
+        child = adb.pipe(('exec-out',cmdline), stdout=PIPE)
         block_iter = iter(lambda: child.stdout.read(65536), b'')
     else:
         port = really_forward(adb, 5600+pi.partn, 5700+pi.partn)

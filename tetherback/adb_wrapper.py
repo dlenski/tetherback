@@ -2,6 +2,8 @@ from sys import stderr
 import subprocess as sp
 import re
 
+from subprocess import PIPE
+
 class AdbWrapper(object):
     def __init__(self, adbbin='adb', devsel=(), debug=None):
         self.adbbin = adbbin
@@ -34,11 +36,8 @@ class AdbWrapper(object):
         un = kwargs.pop('universal_newlines', True)
         return sp.check_output(self.adbcmd(adbargs), universal_newlines=un, **kwargs)
 
-    def pipe_in(self, adbargs, **kwargs):
-        return sp.Popen(self.adbcmd(adbargs), stdin=sp.PIPE, **kwargs)
-
-    def pipe_out(self, adbargs, **kwargs):
-        return sp.Popen(self.adbcmd(adbargs), stdout=sp.PIPE, **kwargs)
+    def pipe(self, adbargs, **kwargs):
+        return sp.Popen(self.adbcmd(adbargs), **kwargs)
 
     def check_call(self, adbargs, **kwargs):
         return sp.check_call(self.adbcmd(adbargs), **kwargs)
