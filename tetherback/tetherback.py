@@ -289,7 +289,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
 
 def main(args=None):
     p, args = parse_args(args)
-    adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',))
+    adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
 
     print('%s v%s' % (p.prog, p.version), file=stderr)
 
