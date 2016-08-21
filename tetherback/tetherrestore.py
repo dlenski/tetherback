@@ -32,7 +32,8 @@ def restore_partition(adb, pi, bp, transport, verify=True):
         cmdline = 'gunzip -f | dd of=/dev/block/%s 2> /dev/null' % pi.devname
 
     if verify:
-        cmdline = 'md5sum /tmp/md5in > /tmp/md5out & tee /tmp/md5in | %s' % cmdline
+        vchild = adb.pipe(('shell','md5sum /tmp/md5in > /tmp/md5out'))
+        cmdline = 'tee /tmp/md5in | %s' % cmdline
         localmd5 = md5()
 
     if transport in (adbxp.pipe_bin, adbxp.pipe_b64):
@@ -66,6 +67,7 @@ def restore_partition(adb, pi, bp, transport, verify=True):
             child.wait()
 
     if verify:
+        vchild.wait()
         devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
         localmd5 = localmd5.hexdigest()
         if devicemd5 != localmd5:

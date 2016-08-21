@@ -227,7 +227,8 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         cmdline = 'dd if=/dev/block/%s 2> /dev/null | gzip -f' % pi.devname
 
     if verify:
-        cmdline = 'md5sum /tmp/md5in > /tmp/md5out & %s | tee /tmp/md5in' % cmdline
+        vchild = adb.pipe(('shell','md5sum /tmp/md5in > /tmp/md5out'))
+        cmdline = '%s | tee /tmp/md5in' % cmdline
         localmd5 = md5()
 
     if transport == adbxp.pipe_bin:
@@ -273,6 +274,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
             child.wait()
 
     if verify:
+        vchild.wait()
         devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
         localmd5 = localmd5.hexdigest()
         if devicemd5 != localmd5:
