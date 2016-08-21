@@ -82,7 +82,7 @@ List of devices attached
   `<label>.img.gz`):
 
     ```bash
-    $ tetherback -n
+    $ tetherback -N
     Found ADB version 1.0.32
     Using default transfer method: adb exec-out pipe (--exec-out)
     Device reports kernel 3.4.0-bricked-hammerhead-twrp-g7b77eb4

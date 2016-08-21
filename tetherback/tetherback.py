@@ -15,6 +15,7 @@ from enum import Enum
 from hashlib import md5
 from collections import namedtuple, OrderedDict as odict
 
+from .version import __version__
 from .adb_wrapper import AdbWrapper
 from .adb_stuff import *
 
@@ -29,6 +30,8 @@ Please post the entire output from tetherback!"""
 
 def parse_args(args=None):
     p = argparse.ArgumentParser(description='''Tool to create TWRP and nandroid-style backups of an Android device running TWRP recovery, using adb-over-USB, without touching the device's internal storage or SD card.''')
+    p.version=__version__
+    p.add_argument('--version', action='version')
     p.add_argument('-s', dest='specific', metavar='DEVICE_ID', default=None, help="Specific device ID (shown by adb devices). Default is sole USB-connected device.")
     p.add_argument('-o', '--output-path', default=".", help="Set optional output path for backup files.")
     p.add_argument('-N', '--nandroid', action='store_true', help="Make nandroid backup; raw images rather than tarballs for /system and /data partitions (default is TWRP backup)")
@@ -161,7 +164,7 @@ def plan_backup(args, partmap):
     # Build table of partitions requested for backup
     if args.nandroid:
         rp = args.extra + args.extra_raw + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
-        plan = odict((p,BackupPlan('%s.tar.gz'%p, None)) for p in rp)
+        plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
     else:
         # Figure out which of the --extra partitions can't actually be mounted and exile them to --extra-raw
         extra_raw = args.extra_raw
@@ -198,7 +201,6 @@ def create_backupdir(args, timestamp=None):
 
     btype = 'nandroid' if args.nandroid else 'twrp'
     backupdir = os.path.join(args.output_path, btype + '-backup-' + timestamp.strftime('%Y-%m-%d--%H-%M-%S'))
-    print("Saving backup images in %s/ ..." % backupdir, file=stderr)
 
     if not os.path.exists(args.output_path):
        os.mkdir(args.output_path)
@@ -288,6 +290,8 @@ def backup_partition(adb, pi, bp, transport, verify=True):
 def main(args=None):
     p, args = parse_args(args)
     adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',))
+
+    print('%s v%s' % (p.prog, p.version), file=stderr)
 
     # check adb version, and TWRP recovery
     adbversion = check_adb_version(p, adb)
