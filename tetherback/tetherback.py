@@ -270,6 +270,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         else:
             pbar.max_value = out.tell() or pbar.max_value # need to adjust for the smaller compressed size
             pbar.finish()
+            child.wait()
 
     if verify:
         devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
@@ -279,7 +280,6 @@ def backup_partition(adb, pi, bp, transport, verify=True):
         with open(bp.fn+'.md5', 'w') as md5out:
             print('%s *%s' % (localmd5, bp.fn), file=md5out)
 
-    child.wait()
     if transport==adbxp.tcp:
         s.close()
         if not really_unforward(adb, port):

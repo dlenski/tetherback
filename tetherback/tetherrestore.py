@@ -63,11 +63,10 @@ def restore_partition(adb, pi, bp, transport, verify=True):
             block_dest.close()
             pbar.max_value = inp.tell() or pbar.max_value # need to adjust for the smaller compressed size
             pbar.finish()
+            child.wait()
 
     if verify:
         devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
         localmd5 = localmd5.hexdigest()
         if devicemd5 != localmd5:
             raise RuntimeError("md5sum mismatch (local %s, device %s)" % (localmd5, devicemd5))
-
-    child.wait()
