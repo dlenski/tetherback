@@ -207,7 +207,7 @@ def create_backupdir(args, timestamp=None):
     os.mkdir(backupdir)
     return backupdir
 
-def backup_partition(adb, pi, bp, transport, verify=True):
+def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
     # Create a FIFO for device-side md5 generation
     if verify:
         adb.check_call(('shell','rm -f /tmp/md5in /tmp/md5out 2> /dev/null; mknod /tmp/md5in p'))
@@ -261,7 +261,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
     pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
     pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
 
-    with open(bp.fn, 'wb') as out:
+    with open(os.path.join(backupdir, bp.fn), 'wb') as out:
         for block in block_iter:
             out.write(block)
             if verify:
@@ -317,11 +317,10 @@ def main(args=None):
 
     # create backup directory
     backupdir = create_backupdir(args)
-    os.chdir(backupdir)
     print("Saving backup images in %s/ ..." % backupdir, file=stderr)
 
     # Okay, now it's time to actually... back up the partitions!
     for standard, bp in plan.items():
-        backup_partition(adb, partmap[standard], bp, args.transport, args.verify)
+        backup_partition(adb, partmap[standard], bp, args.transport, backupdir, args.verify)
 
     print("Backup complete.", file=stderr)
