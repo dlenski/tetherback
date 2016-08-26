@@ -136,6 +136,10 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
         for ii in range(1, nparts+1):
             d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
+            if {'DEVNAME','PARTN','PARTNAME'} - set(d):
+                print("WARNING: partition %sp%d is missing DEVNAME, PARTN, PARTNAME fields\n%s" % (mmcblk, ii, please_report), file=stderr)
+                continue
+
             devname, partn = d['DEVNAME'], int(d['PARTN'])
             size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
             mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
@@ -308,7 +312,7 @@ def main(args=None):
         show_partmap_and_plan(partmap, plan)
 
     if missing & {'cache','system','data','boot'}:
-        p.error("Standard partitions were requested for backup, but not found in the partition map: %s%s" % (', '.join(missing), please_report))
+        p.error("Standard partitions were requested for backup, but not found in the partition map: %s\n%s" % (', '.join(missing), please_report))
     elif missing:
         p.error("These non-standard partitions were requested for backup, but not found in the partition map: %s" % ', '.join(missing))
 
