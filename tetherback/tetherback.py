@@ -136,16 +136,23 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
         for ii in range(1, nparts+1):
             d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
-            if {'DEVNAME','PARTN','PARTNAME'} - set(d):
-                print("WARNING: partition %sp%d is missing DEVNAME, PARTN, PARTNAME fields\n%s" % (mmcblk, ii, please_report), file=stderr)
+            if {'DEVNAME','PARTN'} - set(d):
+                print("WARNING: partition %sp%d is missing DEVNAME or PARTN field, skipping\n%s" % (mmcblk, ii, please_report), file=stderr)
                 continue
 
             devname, partn = d['DEVNAME'], int(d['PARTN'])
-            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
-            mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
+            assert partn==ii                          # mmcblk0p23/uevent must have PARTN=23
+            assert devname=='%sp%d' % (mmcblk, partn) # mmcblk0p23/uevent must have DEVNAME=mmcblk0p23
 
-            # some devices have uppercase names, see #14
-            partname = d['PARTNAME'].lower()
+            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
+            mountpoint, fstype = fstab.get('/dev/block/%s'%devname, (None, None))
+
+            if 'PARTNAME' not in d:
+                print("WARNING: partition %sp%d has no PARTNAME in its uevent file" % (mmcblk, ii, please_report), file=stderr)
+                partname = devname
+            else:
+                # some devices have uppercase names, see #14
+                partname = d['PARTNAME'].lower()
 
             # some devices apparently use non-standard partition names, though standard mount points, see #18
             if partname=='system' or mountpoint=='/system':
