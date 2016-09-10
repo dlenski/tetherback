@@ -120,16 +120,23 @@ List of devices attached
   partition layout:
 
     ```
-    BLOCK DEVICE    NAME        SIZE (KiB)  FILENAME         FORMAT
-    --------------  --------  ------------  ---------------  --------------------------------------------------------
-    mmcblk0p1       modem            65536
+    BLOCK DEVICE    PARTITION NAME      SIZE (KiB)  MOUNT POINT    FSTYPE
+    --------------  ----------------  ------------  -------------  --------
+    mmcblk0p1       modem                    65536
     ...
-    mmcblk0p19      boot             22528  boot.emmc.win    gzipped raw image
+    mmcblk0p19      boot                     22528
     ...
-    mmcblk0p25      system         1048576  system.ext4.win  tar -czC /system -p
+    mmcblk0p25      system                 1048576  /system        ext4
     ...
-    mmcblk0p28      userdata      13404138  data.ext4.win    tar -czC /data -p --exclude="media*" --exclude="*-cache"
-    mmcblk0p29      grow                 5
+    mmcblk0p28      userdata              13404138  /data          ext4
+    mmcblk0p29      grow                         5
+                    Total:                15388143
+
+    PARTITION NAME    FILENAME         FORMAT
+    ----------------  ---------------  -------------------------------------------------
+    boot              boot.emmc.win    gzipped raw image
+    system            system.ext4.win  tar -cz -p
+    userdata          data.ext4.win    tar -cz -p --exclude="media*" --exclude="*-cache"
     ```
 
 * Additional options allow exclusion or inclusion of standard partitions:
