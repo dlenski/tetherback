@@ -14,6 +14,7 @@ following device/recovery/host combinations…
 |--------|----------|---------------|-------|---------|----------|
 | [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.0-0](https://twrp.me/site/update/2016/02/05/twrp-3.0.0-0-released.html) | v1.0.31 | Ubuntu amd64 | working |
 | [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.0-0](https://twrp.me/site/update/2016/02/05/twrp-3.0.0-0-released.html) | v1.0.32 | Ubuntu amd64 | working |
+| [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.2-0](https://twrp.me/site/update/2016/04/05/twrp-3.0.2-0-released.html) | v1.0.32 | Ubuntu amd64 | working |
 | [Samsung Galaxy S4](https://en.wikipedia.org/wiki/Samsung_Galaxy_S4) L720T | jfltespr | [v3.0.2-0](https://twrp.me/site/update/2016/04/05/twrp-3.0.2-0-released.html) | v1.0.32 | Ubuntu amd64 | working |
 
 Other users have reported success—and
@@ -60,6 +61,8 @@ List of devices attached
   and `data.ext4.win`:
 
     ```bash
+    $ tetherback
+    tetherback v0.8
     Found ADB version 1.0.32
     Using default transfer method: adb exec-out pipe (--exec-out)
     Device reports kernel 3.4.0-bricked-hammerhead-twrp-g7b77eb4
@@ -83,6 +86,7 @@ List of devices attached
 
     ```bash
     $ tetherback -N
+    tetherback v0.8
     Found ADB version 1.0.32
     Using default transfer method: adb exec-out pipe (--exec-out)
     Device reports kernel 3.4.0-bricked-hammerhead-twrp-g7b77eb4
@@ -116,16 +120,23 @@ List of devices attached
   partition layout:
 
     ```
-    BLOCK DEVICE    NAME        SIZE (KiB)  FILENAME         FORMAT
-    --------------  --------  ------------  ---------------  --------------------------------------------------------
-    mmcblk0p1       modem            65536
+    BLOCK DEVICE    PARTITION NAME      SIZE (KiB)  MOUNT POINT    FSTYPE
+    --------------  ----------------  ------------  -------------  --------
+    mmcblk0p1       modem                    65536
     ...
-    mmcblk0p19      boot             22528  boot.emmc.win    gzipped raw image
+    mmcblk0p19      boot                     22528
     ...
-    mmcblk0p25      system         1048576  system.ext4.win  tar -czC /system -p
+    mmcblk0p25      system                 1048576  /system        ext4
     ...
-    mmcblk0p28      userdata      13404138  data.ext4.win    tar -czC /data -p --exclude="media*" --exclude="*-cache"
-    mmcblk0p29      grow                 5
+    mmcblk0p28      userdata              13404138  /data          ext4
+    mmcblk0p29      grow                         5
+                    Total:                15388143
+
+    PARTITION NAME    FILENAME         FORMAT
+    ----------------  ---------------  -------------------------------------------------
+    boot              boot.emmc.win    gzipped raw image
+    system            system.ext4.win  tar -cz -p
+    userdata          data.ext4.win    tar -cz -p --exclude="media*" --exclude="*-cache"
     ```
 
 * Additional options allow exclusion or inclusion of standard partitions:
