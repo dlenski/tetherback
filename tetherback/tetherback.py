@@ -128,7 +128,8 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
     if mmcblks is None:
-        mmcblks = adb.check_output(('shell','cd /sys/block; ls -1d mmcblk*')).splitlines()
+        # issue #29: not all TWRP busybox builds have the ls -1 (single-column) option
+        mmcblks = adb.check_output(('shell','cd /sys/block; ls -d mmcblk*')).split()
     for mmcblk in mmcblks:
         d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
         nparts = int(d.get('NPARTS',0))
@@ -136,12 +137,23 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
         for ii in range(1, nparts+1):
             d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
-            devname, partn = d['DEVNAME'], int(d['PARTN'])
-            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
-            mountpoint, fstype = fstab.get('/dev/block/%s'%d['DEVNAME'], (None, None))
+            if {'DEVNAME','PARTN'} - set(d):
+                print("WARNING: partition %sp%d is missing DEVNAME or PARTN field, skipping\n%s" % (mmcblk, ii, please_report), file=stderr)
+                continue
 
-            # some devices have uppercase names, see #14
-            partname = d['PARTNAME'].lower()
+            devname, partn = d['DEVNAME'], int(d['PARTN'])
+            assert partn==ii                          # mmcblk0p23/uevent must have PARTN=23
+            assert devname=='%sp%d' % (mmcblk, partn) # mmcblk0p23/uevent must have DEVNAME=mmcblk0p23
+
+            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
+            mountpoint, fstype = fstab.get('/dev/block/%s'%devname, (None, None))
+
+            if 'PARTNAME' not in d:
+                print("WARNING: partition %sp%d has no PARTNAME in its uevent file" % (mmcblk, ii, please_report), file=stderr)
+                partname = devname
+            else:
+                # some devices have uppercase names, see #14
+                partname = d['PARTNAME'].lower()
 
             # some devices apparently use non-standard partition names, though standard mount points, see #18
             if partname=='system' or mountpoint=='/system':
@@ -207,12 +219,14 @@ def create_backupdir(args, timestamp=None):
     os.mkdir(backupdir)
     return backupdir
 
-def backup_partition(adb, pi, bp, transport, verify=True):
+def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
     # Create a FIFO for device-side md5 generation
     if verify:
         adb.check_call(('shell','rm -f /tmp/md5in /tmp/md5out 2> /dev/null; mknod /tmp/md5in p'))
 
     if bp.taropts:
+        if not pi.mountpoint:
+            raise RuntimeError("%s: don't know how to mount this partition" % pi.devname)
         print("Saving tarball of %s (mounted at %s), %d MiB uncompressed..." % (pi.devname, pi.mountpoint, pi.size/2048))
         fstype = really_mount(adb, '/dev/block/'+pi.devname, pi.mountpoint)
         if not fstype:
@@ -261,7 +275,7 @@ def backup_partition(adb, pi, bp, transport, verify=True):
     pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
     pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
 
-    with open(bp.fn, 'wb') as out:
+    with open(os.path.join(backupdir, bp.fn), 'wb') as out:
         for block in block_iter:
             out.write(block)
             if verify:
@@ -308,7 +322,7 @@ def main(args=None):
         show_partmap_and_plan(partmap, plan)
 
     if missing & {'cache','system','data','boot'}:
-        p.error("Standard partitions were requested for backup, but not found in the partition map: %s%s" % (', '.join(missing), please_report))
+        p.error("Standard partitions were requested for backup, but not found in the partition map: %s\n%s" % (', '.join(missing), please_report))
     elif missing:
         p.error("These non-standard partitions were requested for backup, but not found in the partition map: %s" % ', '.join(missing))
 
@@ -317,11 +331,10 @@ def main(args=None):
 
     # create backup directory
     backupdir = create_backupdir(args)
-    os.chdir(backupdir)
     print("Saving backup images in %s/ ..." % backupdir, file=stderr)
 
     # Okay, now it's time to actually... back up the partitions!
     for standard, bp in plan.items():
-        backup_partition(adb, partmap[standard], bp, args.transport, args.verify)
+        backup_partition(adb, partmap[standard], bp, args.transport, backupdir, args.verify)
 
     print("Backup complete.", file=stderr)
