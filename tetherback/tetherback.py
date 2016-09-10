@@ -225,6 +225,8 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
         adb.check_call(('shell','rm -f /tmp/md5in /tmp/md5out 2> /dev/null; mknod /tmp/md5in p'))
 
     if bp.taropts:
+        if not pi.mountpoint:
+            raise RuntimeError("%s: don't know how to mount this partition" % pi.devname)
         print("Saving tarball of %s (mounted at %s), %d MiB uncompressed..." % (pi.devname, pi.mountpoint, pi.size/2048))
         fstype = really_mount(adb, '/dev/block/'+pi.devname, pi.mountpoint)
         if not fstype:
