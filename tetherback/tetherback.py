@@ -128,7 +128,8 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
     if mmcblks is None:
-        mmcblks = adb.check_output(('shell','cd /sys/block; ls -1d mmcblk*')).splitlines()
+        # issue #29: not all TWRP busybox builds have the ls -1 (single-column) option
+        mmcblks = adb.check_output(('shell','cd /sys/block; ls -d mmcblk*')).split()
     for mmcblk in mmcblks:
         d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
         nparts = int(d.get('NPARTS',0))
