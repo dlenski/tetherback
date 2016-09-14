@@ -83,7 +83,7 @@ def check_TWRP(p, adb, force=False):
     try:
         kernel = adb.check_output(('shell','uname -r')).strip()
     except sp.CalledProcessError:
-        p.error("Device not connected. adb returns an error:\n\n\t%s" % ' '.join(adb.adbcmd(('shell',))))
+        p.error("No device is connected via USB. adb returns an error:\n\n\t%s" % ' '.join(adb.adbcmd(('shell',))))
     print("Device reports kernel %s" % kernel, file=stderr)
     output = adb.check_output(('shell','twrp -v')).strip()
     m = re.search(r'TWRP version ((?:\d+.)+\d+)', output)
