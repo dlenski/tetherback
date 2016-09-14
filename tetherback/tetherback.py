@@ -149,7 +149,7 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
             mountpoint, fstype = fstab.get('/dev/block/%s'%devname, (None, None))
 
             if 'PARTNAME' not in d:
-                print("WARNING: partition %sp%d has no PARTNAME in its uevent file" % (mmcblk, ii, please_report), file=stderr)
+                print("WARNING: partition %sp%d has no PARTNAME in its uevent file\n%s" % (mmcblk, ii, please_report), file=stderr)
                 partname = devname
             else:
                 # some devices have uppercase names, see #14
