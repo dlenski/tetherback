@@ -51,6 +51,7 @@ def parse_args(args=None):
     x.add_argument('-P','--pipe', dest='transport', action='store_const', const=adbxp.pipe_bin,
                    help="ADB shell binary pipe (fast, but probably only works on Linux hosts)")
     g = p.add_argument_group('Backup contents')
+    g.add_argument('-M', '--media', dest='media_deprecated', action='store_true', default=False, help="Include /data/media* in TWRP backup (Deprecated: /data/media* is included by default. Use --no-media to exclude.)")
     g.add_argument('-D', '--data-cache', action='store_true', default=False, help="Include /data/*-cache in TWRP backup")
     g.add_argument('-R', '--recovery', action='store_true', default=False, help="Include recovery partition in backup")
     g.add_argument('-C', '--cache', dest='cache', action='store_true', default=False, help="Include /cache partition in backup")
@@ -303,6 +304,11 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
 
 def main(args=None):
     p, args = parse_args(args)
+
+    # warn about deprecated options, if passed on command line
+    if args.media_deprecated:
+        p.error("-M/--media is deprecated. /data/media* will be included by default. Use -E/--no-media to exclude.")
+
     adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
 
     print('%s v%s' % (p.prog, p.version), file=stderr)
