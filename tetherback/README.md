@@ -143,11 +143,12 @@ List of devices attached
 * Additional options allow exclusion or inclusion of standard partitions:
 
     ```
-    -M, --media           Include /data/media* in TWRP backup
+    -M, --media           Include /data/media* in TWRP backup (deprecated: default behavior)
     -D, --data-cache      Include /data/*-cache in TWRP backup
     -R, --recovery        Include recovery partition in backup
     -C, --cache           Include /cache partition in backup
-    -U, --no-userdata     Omit /data partition from backup
+    -U, --no-userdata     Omit /data partition from backup (implies --no-media)
+    -E, --no-media        Omit /data/media* from TWRP backup
     -S, --no-system       Omit /system partition from backup
     -B, --no-boot         Omit boot partition from backup
     ```
