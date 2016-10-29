@@ -3,7 +3,7 @@
 # Inspired by https://gist.github.com/inhies/5069663
 #
 # Currently backs up /data, /system, and /boot partitions
-# Excludes /data/media*, just as TWRP does
+# Includes /data/media* by default, unlike TWRP (see issue #35)
 
 import subprocess as sp
 import os, sys, datetime, socket, time, argparse, re
@@ -51,11 +51,11 @@ def parse_args(args=None):
     x.add_argument('-P','--pipe', dest='transport', action='store_const', const=adbxp.pipe_bin,
                    help="ADB shell binary pipe (fast, but probably only works on Linux hosts)")
     g = p.add_argument_group('Backup contents')
-    g.add_argument('-M', '--media', action='store_true', default=False, help="Include /data/media* in TWRP backup")
     g.add_argument('-D', '--data-cache', action='store_true', default=False, help="Include /data/*-cache in TWRP backup")
     g.add_argument('-R', '--recovery', action='store_true', default=False, help="Include recovery partition in backup")
     g.add_argument('-C', '--cache', dest='cache', action='store_true', default=False, help="Include /cache partition in backup")
-    g.add_argument('-U', '--no-userdata', dest='userdata', action='store_false', default=True, help="Omit /data partition from backup")
+    g.add_argument('-U', '--no-userdata', dest='userdata', action='store_false', default=True, help="Omit /data partition from backup (implies --no-media)")
+    g.add_argument('-E', '--no-media', dest='media', action='store_false', default=True, help="Omit /data/media* from TWRP backup")
     g.add_argument('-S', '--no-system', dest='system', action='store_false', default=True, help="Omit /system partition from backup")
     g.add_argument('-B', '--no-boot', dest='boot', action='store_false', default=True, help="Omit boot partition from backup")
     g.add_argument('-X', '--extra', action='append', metavar='NAME', default=[], help="Include extra partition (as a tarball if this partition is mountable and TWRP backup type is chosen, otherwise as raw image)")
