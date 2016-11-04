@@ -28,23 +28,23 @@ systems, various versions of Windows and Mac OS X.
 
 ## Requirements and installation
 
-* Python 3.3+
-  * Install with `pip3`: (Note that on most systems, `pip` invokes
-    the Python 2.x version, while `pip3` invokes the Python 3.x version)
+tetherback requires Python 3.3+. In addition, it depends on:
 
-    ```
-    # Install latest development version
-    $ pip3 install https://github.com/dlenski/tetherback/archive/HEAD.zip
-
-    # Install a tagged release
-    # (replace "RELEASE" with one of the tag/release version numbers on the "Releases" page)
-    $ pip3 install https://github.com/dlenski/tetherback/archive/RELEASE.zip
-    ```
-
-  * Manual installation: `progressbar2` and `tabulate` packages are
-    needed. (This should do it: `pip3 install progressbar2 tabulate`.)
-* You must have [TWRP recovery](https://twrp.me/) installed on your rooted Android device
+* [TWRP recovery](https://twrp.me/) installed on your rooted Android device
 * [`adb`](https://en.wikipedia.org/wiki/Android_software_development#ADB) (Android Debug Bridge) command-line tools
+* `progressbar2` and `tabulate` packages from PyPI (fetched automatically during `pip install`; see below)
+
+Install with `pip3` to automatically fetch Python dependencies. (Note that on most systems, `pip` invokes
+the Python 2.x version, while `pip3` invokes the Python 3.x version.)
+
+```
+# Install latest development version
+$ pip3 install https://github.com/dlenski/tetherback/archive/HEAD.zip
+
+# Install a tagged release
+# (replace "RELEASE" with one of the tag/release version numbers on the "Releases" page)
+$ pip3 install https://github.com/dlenski/tetherback/archive/RELEASE.zip
+```
 
 ## Usage
 
