@@ -290,7 +290,7 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
         localmd5 = localmd5.hexdigest()
         if devicemd5 != localmd5:
             raise RuntimeError("md5sum mismatch (local %s, device %s)" % (localmd5, devicemd5))
-        with open(bp.fn+'.md5', 'w') as md5out:
+        with open(os.path.join(backupdir, bp.fn+'.md5'), 'w') as md5out:
             print('%s *%s' % (localmd5, bp.fn), file=md5out)
 
     child.wait()

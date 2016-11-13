@@ -12,6 +12,7 @@ following device/recovery/host combinations…
 
 | Device | Codename | TWRP recovery | `adb` | Host OS | Comments |
 |--------|----------|---------------|-------|---------|----------|
+| [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v2.8.5-0](http://teamw.in/site/update/2015/02/12/twrp-2.8.5.0-released.html) | v1.0.32 | Ubuntu amd64 |**`adb exec-out` does not work** |
 | [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.0-0](https://twrp.me/site/update/2016/02/05/twrp-3.0.0-0-released.html) | v1.0.31 | Ubuntu amd64 | working |
 | [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.0-0](https://twrp.me/site/update/2016/02/05/twrp-3.0.0-0-released.html) | v1.0.32 | Ubuntu amd64 | working |
 | [LG/Google Nexus 5](http://wikipedia.org/wiki/Nexus_5) | hammerhead | [v3.0.2-0](https://twrp.me/site/update/2016/04/05/twrp-3.0.2-0-released.html) | v1.0.32 | Ubuntu amd64 | working |
