@@ -193,7 +193,7 @@ def plan_backup(args, partmap):
             data_omit = []
             if not args.media: data_omit.append("media*")
             if not args.data_cache: data_omit.append("*-cache")
-            plan['userdata'] = BackupPlan('data.ext4.win', '-p'+''.join(' --exclude="%s"'%x for x in data_omit))
+            plan['userdata'] = BackupPlan('data.%s.win' % partmap['userdata'].fstype, '-p'+''.join(' --exclude="%s"'%x for x in data_omit))
     return plan
 
 def show_partmap_and_plan(partmap, plan):
