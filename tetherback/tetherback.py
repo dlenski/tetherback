@@ -124,10 +124,18 @@ def sensible_transport(transport, adbversion):
             return adbxp.tcp
     return transport
 
+def get_userdata_partinfo(fstab):
+    for dev, info in fstab.items():
+        if info[0] == '/data':
+            return { 'dev': dev.split('/')[-1], 'mnt': info[0], 'fs': info[1] }
+    return None
+
 def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     # build partition map
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
+    userdata_partinfo = get_userdata_partinfo(fstab)
+
     if mmcblks is None:
         # issue #29: not all TWRP busybox builds have the ls -1 (single-column) option
         mmcblks = adb.check_output(('shell','cd /sys/block; ls -d mmcblk*')).split()
@@ -165,6 +173,12 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
                 standard = 'cache'
             else:
                 standard = partname
+
+            if partname == 'userdata' and mountpoint == None and userdata_partinfo != None:
+                # User data encrypted, ger mountable device from fstab
+                devname = userdata_partinfo['dev']
+                mountpoint = userdata_partinfo['mnt']
+                fstype = userdata_partinfo['fs']
 
             partmap[standard] = PartInfo(partname, devname, partn, size, mountpoint, fstype)
             pbar.update(ii)
