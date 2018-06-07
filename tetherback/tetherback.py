@@ -175,7 +175,7 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
                 standard = partname
 
             if partname == 'userdata' and mountpoint == None and userdata_partinfo != None:
-                # User data encrypted, ger mountable device from fstab
+                # User data encrypted, get mountable device from fstab
                 devname = userdata_partinfo['dev']
                 mountpoint = userdata_partinfo['mnt']
                 fstype = userdata_partinfo['fs']
