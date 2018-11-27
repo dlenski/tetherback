@@ -32,8 +32,8 @@ def parse_args(args=None):
     p = argparse.ArgumentParser(description='''Tool to create TWRP and nandroid-style backups of an Android device running TWRP recovery, using adb-over-USB, without touching the device's internal storage or SD card.''')
     p.version=__version__
     p.add_argument('--version', action='version')
+    p.add_argument('-a', '--adb-path', dest='adb_path', default=None, help='Specify a path to ADB')
     p.add_argument('-s', dest='specific', metavar='DEVICE_ID', default=None, help="Specific device ID (shown by adb devices). Default is sole USB-connected device.")
-    p.add_argument('-a', '--adb-path', dest='cust_adb_path', default=None, help='Specify a path to ADB')
     p.add_argument('-o', '--output-path', default=".", help="Set optional output path for backup files.")
     p.add_argument('-N', '--nandroid', action='store_true', help="Make nandroid backup; raw images rather than tarballs for /system and /data partitions (default is TWRP backup)")
     p.add_argument('-0', '--dry-run', action='store_true', help="Just show the partition map and backup plan, then exit.")
@@ -324,8 +324,8 @@ def main(args=None):
     if args.media_deprecated:
         p.error("-M/--media is deprecated. /data/media* will be included by default. Use -E/--no-media to exclude.")
 
-    if args.cust_adb_path:
-        adb = AdbWrapper(args.cust_adb_path, ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
+    if args.adb_path:
+        adb = AdbWrapper(args.adb_path, ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
     else:
         adb = AdbWrapper('adb', ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
 
