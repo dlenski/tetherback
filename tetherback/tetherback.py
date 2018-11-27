@@ -130,11 +130,18 @@ def get_userdata_partinfo(fstab):
             return { 'dev': dev.split('/')[-1], 'mnt': info[0], 'fs': info[1] }
     return None
 
+def get_sdcard_partinfo(fstab):
+    for dev, info in fstab.items():
+        if info[0] == '/external_sd':
+            return { 'dev': dev.split('/')[-1], 'mnt': info[0], 'fs': info[1] }
+    return None
+
 def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
     # build partition map
     partmap = odict()
     fstab = fstab_dict(adb, fstab)
     userdata_partinfo = get_userdata_partinfo(fstab)
+    externalsd_partinfo = get_sdcard_partinfo(fstab)
 
     if mmcblks is None:
         # issue #29: not all TWRP busybox builds have the ls -1 (single-column) option
@@ -158,8 +165,11 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
             mountpoint, fstype = fstab.get('/dev/block/%s'%devname, (None, None))
 
             if 'PARTNAME' not in d:
-                print("WARNING: partition %sp%d has no PARTNAME in its uevent file\n%s" % (mmcblk, ii, please_report), file=stderr)
-                partname = devname
+                if externalsd_partinfo != None:
+                    partname = externalsd_partinfo['mnt'].replace('/', '')
+                else:
+                    print("WARNING: partition %sp%d has no PARTNAME in its uevent file\n%s" % (mmcblk, ii, please_report), file=stderr)
+                    partname = devname
             else:
                 # some devices have uppercase names, see #14
                 partname = d['PARTNAME'].lower()
