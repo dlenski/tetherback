@@ -296,7 +296,7 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
             out.write(block)
             if verify:
                 localmd5.update(block)
-            pbar.update(out.tell())
+            pbar.update(min(out.tell(), pbar.max_value))
         else:
             pbar.max_value = out.tell() or pbar.max_value # need to adjust for the smaller compressed size
             pbar.finish()
