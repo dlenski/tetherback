@@ -62,6 +62,7 @@ def parse_args(args=None):
     g.add_argument('-B', '--no-boot', dest='boot', action='store_false', default=True, help="Omit boot partition from backup")
     g.add_argument('-X', '--extra', action='append', metavar='NAME', default=[], help="Include extra partition (as a tarball if this partition is mountable and TWRP backup type is chosen, otherwise as raw image)")
     g.add_argument('--extra-raw', action='append', metavar='NAME', default=[], help="Include extra partition (always as raw image)")
+    g.add_argument('--all-partitions', dest='all_partitions', action='store_true', default=False, help="Include all partitions (currently implies --nandroid)")
     return p, p.parse_args(args)
 
 def check_adb_version(p, adb):
@@ -190,7 +191,10 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
 
 def plan_backup(args, partmap):
     # Build table of partitions requested for backup
-    if args.nandroid:
+    if args.all_partitions:
+        rp = [ p.partname for _, p in partmap.items() ]
+        plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
+    elif args.nandroid:
         rp = args.extra + args.extra_raw + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
         plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
     else:
