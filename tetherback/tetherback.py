@@ -254,7 +254,7 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
         print("Saving partition %s (%s), %d MiB uncompressed..." % (pi.partname, pi.devname, pi.size/2048))
         if not really_umount(adb, '/dev/block/'+pi.devname, pi.mountpoint):
             raise RuntimeError('%s: could not unmount %s' % (pi.partname, pi.mountpoint))
-        cmdline = 'dd if=/dev/block/%s 2> /dev/null | gzip -f' % pi.devname
+        cmdline = 'dd if=/dev/block/%s 2> /dev/null | pigz -f' % pi.devname
 
     if verify:
         cmdline = 'md5sum /tmp/md5in > /tmp/md5out & %s | tee /tmp/md5in' % cmdline
