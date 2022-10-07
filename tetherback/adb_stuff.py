@@ -12,7 +12,7 @@ def find_mount(adb, dev, node):
             # ... while others look like this:
             #    /dev/node /filesystem/mountpoint fstype options
             if len(f)<3:
-                print( "WARNING: don't understand output from mount: %s" % (repr(l)), file=stderr )
+                print( "WARNING: don't understand output from mount: %r" % l, file=stderr )
             else:
                 mdev, mnode, mtype = (f[0], f[2], f[4]) if len(f)>=5 else f[:3]
                 if mdev==dev or mnode==node:
@@ -55,7 +55,7 @@ def uevent_dict(adb, path):
         if not l:
             pass
         elif '=' not in l:
-            print( "WARNING: don't understand this line from %s: %s" % (repr(path), repr(l)), file=stderr )
+            print( "WARNING: don't understand this line from %r: %r" % (path, l), file=stderr )
         else:
             k, v = l.split('=',1)
             d[k] = v
@@ -70,7 +70,7 @@ def fstab_dict(adb, path='/etc/fstab'):
         else:
             f = l.split()
             if len(f)<3:
-                print( "WARNING: don't understand this line from %s: %s" % (repr(path), repr(l)), file=stderr )
+                print( "WARNING: don't understand this line from %r: %r" % (path, l), file=stderr )
             else:
                 # devname -> (mountpoint, fstype)
                 d[f[0]] = (f[1], f[2])

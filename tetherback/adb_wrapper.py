@@ -27,7 +27,7 @@ class AdbWrapper(object):
     def adbcmd(self, adbargs):
         args = (self.adbbin,) + self.devsel + tuple(adbargs)
         if self.debug:
-            print("ADB: %s"%repr(args), file=stderr)
+            print("ADB: %r"%args, file=stderr)
         return args
 
     def check_output(self, adbargs, **kwargs):
