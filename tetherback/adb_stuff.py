@@ -1,4 +1,5 @@
 from sys import stderr
+from subprocess import CalledProcessError
 import time
 
 def find_mount(adb, dev, node):
@@ -49,16 +50,20 @@ def really_unforward(adb, port, tries=3):
         time.sleep(1)
 
 def uevent_dict(adb, path):
-    lines = adb.check_output(('shell','cat "%s"'%path)).splitlines()
     d = {}
-    for l in lines:
-        if not l:
-            pass
-        elif '=' not in l:
-            print( "WARNING: don't understand this line from %r: %r" % (path, l), file=stderr )
-        else:
-            k, v = l.split('=',1)
-            d[k] = v
+    try:
+        lines = adb.check_output(('shell','cat "%s"'%path)).splitlines()
+    except CalledProcessError:
+        print( "WARNING: could not read %r, returning nothing" % path )
+    else:
+        for l in lines:
+            if not l:
+                pass
+            elif '=' not in l:
+                print( "WARNING: don't understand this line from %r: %r" % (path, l), file=stderr )
+            else:
+                k, v = l.split('=',1)
+                d[k] = v
     return d
 
 def fstab_dict(adb, path='/etc/fstab'):
