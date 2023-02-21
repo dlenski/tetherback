@@ -74,9 +74,9 @@ def check_adb_version(p, adb):
         p.error("could not determine ADB version")
 
     if adbversion<(1,0,31):
-        p.error("found ADB version %s, but version >= 1.0.31 is required" % adbversions)
+        p.error(f"found ADB version {adbversions}, but version >= 1.0.31 is required")
     else:
-        print("Found ADB version %s" % adbversions, file=stderr)
+        print(f"Found ADB version {adbversions}", file=stderr)
 
     return adbversion
 
@@ -85,8 +85,8 @@ def check_TWRP(p, adb, force=False):
     try:
         kernel = adb.check_output(('shell','uname -r')).strip()
     except sp.CalledProcessError:
-        p.error("No device is connected via USB. adb returns an error:\n\n\t%s" % ' '.join(adb.adbcmd(('shell',))))
-    print("Device reports kernel %s" % kernel, file=stderr)
+        p.error(f"No device is connected via USB. adb returns an error:\n\n\t{' '.join(adb.adbcmd(('shell',)))}")
+    print(f"Device reports kernel {kernel}", file=stderr)
     output = adb.check_output(('shell','twrp -v')).strip()
     m = re.search(r'TWRP version ((?:\d+.)+\d+)', output)
     if not m and force:
@@ -95,7 +95,7 @@ def check_TWRP(p, adb, force=False):
         print("If you try to run a backup while booted in the Android OS:")
         print("  - You will probably get errors.")
         print("  - Even if the backup runs without error, it is likely to be corrupted")
-        print("Unless you are developing or debugging %s, don't use this." % p.prog)
+        print(f"Unless you are developing or debugging {p.prog}, don't use this.")
         print("********************")
         if input("Really proceed (y/N)? ")[:1].lower() != 'y':
             raise SystemExit(1)
@@ -103,7 +103,7 @@ def check_TWRP(p, adb, force=False):
         print(output)
         p.error("Device is not in TWRP; please boot into TWRP recovery and retry.")
     else:
-        print("Device reports TWRP version %s" % m.group(1), file=stderr)
+        print(f"Device reports TWRP version {m.group(1)}", file=stderr)
 
 def sensible_transport(transport, adbversion):
     if transport==adbxp.pipe_xo and adbversion<(1,0,32):
@@ -141,25 +141,25 @@ def build_partmap(adb, mmcblks=None, fstab='/etc/fstab'):
         # issue #29: not all TWRP busybox builds have the ls -1 (single-column) option
         mmcblks = adb.check_output(('shell','cd /sys/block; ls -d mmcblk*')).split()
     for mmcblk in mmcblks:
-        d = uevent_dict(adb, '/sys/block/%s/uevent' % mmcblk)
+        d = uevent_dict(adb, f'/sys/block/{mmcblk}/uevent')
         nparts = int(d.get('NPARTS',0))
-        print("Reading partition map for %s (%d partitions)..." % (mmcblk, nparts), file=stderr)
+        print(f"Reading partition map for {mmcblk} ({nparts} partitions)...", file=stderr)
         pbar = ProgressBar(max_value=nparts, widgets=['  partition map: ', Percentage()]).start()
         for ii in range(1, nparts+1):
-            d = uevent_dict(adb, '/sys/block/%s/%sp%d/uevent'%(mmcblk, mmcblk, ii))
+            d = uevent_dict(adb, f'/sys/block/{mmcblk}/{mmcblk}p{ii}/uevent')
             if {'DEVNAME','PARTN'} - set(d):
-                print("WARNING: partition %sp%d is missing DEVNAME or PARTN field, skipping\n%s" % (mmcblk, ii, please_report), file=stderr)
+                print(f"WARNING: partition {mmcblk}p{ii} is missing DEVNAME or PARTN field, skipping\n{please_report}", file=stderr)
                 continue
 
             devname, partn = d['DEVNAME'], int(d['PARTN'])
             assert partn==ii                          # mmcblk0p23/uevent must have PARTN=23
-            assert devname=='%sp%d' % (mmcblk, partn) # mmcblk0p23/uevent must have DEVNAME=mmcblk0p23
+            assert devname==f'{mmcblk}p{partn}' # mmcblk0p23/uevent must have DEVNAME=mmcblk0p23
 
-            size = int(adb.check_output(('shell','cat /sys/block/%s/%sp%d/size'%(mmcblk, mmcblk, ii))))
-            mountpoint, fstype = fstab.get('/dev/block/%s'%devname, (None, None))
+            size = int(adb.check_output(('shell',f'cat /sys/block/{mmcblk}/{mmcblk}p{ii}/size')))
+            mountpoint, fstype = fstab.get(f'/dev/block/{devname}', (None, None))
 
             if 'PARTNAME' not in d:
-                print("WARNING: partition %sp%d has no PARTNAME in its uevent file\n%s" % (mmcblk, ii, please_report), file=stderr)
+                print(f"WARNING: partition {mmcblk}p{ii} has no PARTNAME in its uevent file\n{please_report}", file=stderr)
                 partname = devname
             else:
                 # some devices have uppercase names, see #14
@@ -192,7 +192,7 @@ def plan_backup(args, partmap):
     # Build table of partitions requested for backup
     if args.nandroid:
         rp = args.extra + args.extra_raw + [x for x in ('boot','recovery','system','userdata','cache') if getattr(args, x)]
-        plan = odict((p,BackupPlan('%s.emmc.gz'%p, None)) for p in rp)
+        plan = odict((p,BackupPlan(f'{p}.emmc.gz', None)) for p in rp)
     else:
         # Figure out which of the --extra partitions can't actually be mounted and exile them to --extra-raw
         extra_raw = args.extra_raw
@@ -201,20 +201,20 @@ def plan_backup(args, partmap):
             (extra_mount if p in partmap and partmap[p].fstype else extra_raw).append(p)
 
         rp = extra_raw + [x for x in ('boot','recovery') if getattr(args, x)]
-        plan = odict((p,BackupPlan('%s.emmc.win'%p, None)) for p in rp)
+        plan = odict((p,BackupPlan(f'{p}.emmc.win', None)) for p in rp)
         mp = extra_mount + [x for x in ('cache','system') if getattr(args, x)]
-        plan.update((p,BackupPlan('%s.%s.win'%(p, partmap[p].fstype), '-p')) for p in mp)
+        plan.update((p,BackupPlan(f'{p}.{partmap[p].fstype}.win', '-p')) for p in mp)
 
         if args.userdata:
             data_omit = []
             if not args.media: data_omit.append("media*")
             if not args.data_cache: data_omit.append("*-cache")
-            plan['userdata'] = BackupPlan('data.ext4.win', '-p'+''.join(' --exclude="%s"'%x for x in data_omit))
+            plan['userdata'] = BackupPlan('data.ext4.win', '-p'+''.join(f' --exclude="{x}"' for x in data_omit))
     return plan
 
 def show_partmap_and_plan(partmap, plan):
     print("\nPartition map:\n")
-    print(tabulate( [[ p.devname, p.partname + (' (standard %s)'%standard if p.partname!=standard else ''), p.size//2, p.mountpoint, p.fstype] for standard, p in partmap.items() ]
+    print(tabulate( [[ p.devname, p.partname + (f' (standard {standard})' if p.partname!=standard else ''), p.size//2, p.mountpoint, p.fstype] for standard, p in partmap.items() ]
                     +[[ '', 'Total:', sum(p.size//2 for p in partmap.values()), '', '' ]],
                     [ 'BLOCK DEVICE','PARTITION NAME','SIZE (KiB)','MOUNT POINT','FSTYPE' ] ))
 
@@ -242,22 +242,22 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
 
     if bp.taropts:
         if not pi.mountpoint:
-            raise RuntimeError("%s: don't know how to mount this partition" % pi.devname)
-        print("Saving tarball of %s (mounted at %s), %d MiB uncompressed..." % (pi.devname, pi.mountpoint, pi.size/2048))
+            raise RuntimeError(f"{pi.devname}: don't know how to mount this partition")
+        print(f"Saving tarball of {pi.devname} (mounted at {pi.mountpoint}), {pi.size // 2048} MiB uncompressed...")
         fstype = really_mount(adb, '/dev/block/'+pi.devname, pi.mountpoint)
         if not fstype:
-            raise RuntimeError('%s: could not mount %s' % (pi.partname, pi.mountpoint))
+            raise RuntimeError(f'{pi.partname}: could not mount {pi.mountpoint}')
         if fstype != pi.fstype:
-            raise RuntimeError('%s: expected %s filesystem, but found %s' % (pi.partname, pi.fstype, fstype))
-        cmdline = 'tar -czC %s %s . 2> /dev/null' % (pi.mountpoint, bp.taropts or '')
+            raise RuntimeError(f'{pi.partname}: expected {pi.fstype} filesystem, but found {fstype}')
+        cmdline = f"tar -czC {pi.mountpoint} {bp.taropts or ''} . 2> /dev/null"
     else:
-        print("Saving partition %s (%s), %d MiB uncompressed..." % (pi.partname, pi.devname, pi.size/2048))
+        print(f"Saving partition {pi.partname} ({pi.devname}), {pi.size // 2048} MiB uncompressed...")
         if not really_umount(adb, '/dev/block/'+pi.devname, pi.mountpoint):
-            raise RuntimeError('%s: could not unmount %s' % (pi.partname, pi.mountpoint))
-        cmdline = 'dd if=/dev/block/%s 2> /dev/null | gzip -f' % pi.devname
+            raise RuntimeError(f'{pi.partname}: could not unmount {pi.mountpoint}')
+        cmdline = f'dd if=/dev/block/{pi.devname} 2> /dev/null | gzip -f'
 
     if verify:
-        cmdline = 'md5sum /tmp/md5in > /tmp/md5out & %s | tee /tmp/md5in' % cmdline
+        cmdline = f'md5sum /tmp/md5in > /tmp/md5out & {cmdline} | tee /tmp/md5in'
         localmd5 = md5()
 
     if transport == adbxp.pipe_bin:
@@ -279,8 +279,8 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
     else:
         port = really_forward(adb, 5600+pi.partn, 5700+pi.partn)
         if not port:
-            raise RuntimeError('%s: could not ADB-forward a TCP port')
-        child = adb.pipe_out(('shell',cmdline + '| nc -l -p%d -w3'%port))
+            raise RuntimeError('could not ADB-forward a TCP port')
+        child = adb.pipe_out(('shell',cmdline + f'| nc -l -p{port} -w3'))
 
         # FIXME: need a better way to check that socket is ready to transmit
         time.sleep(1)
@@ -288,7 +288,7 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
         s.connect(('localhost', port))
         block_iter = iter(lambda: s.recv(65536), b'')
 
-    pbwidgets = ['  %s: ' % bp.fn, Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
+    pbwidgets = [f'  {bp.fn}: ', Percentage(), ' ', FileTransferSpeed(), ' ', DataSize() ]
     pbar = ProgressBar(max_value=pi.size*512, widgets=pbwidgets).start()
 
     with open(os.path.join(backupdir, bp.fn), 'wb') as out:
@@ -305,15 +305,15 @@ def backup_partition(adb, pi, bp, transport, backupdir, verify=True):
         devicemd5 = adb.check_output(('shell','cat /tmp/md5out && rm -f /tmp/md5in /tmp/md5out')).strip().split()[0]
         localmd5 = localmd5.hexdigest()
         if devicemd5 != localmd5:
-            raise RuntimeError("md5sum mismatch (local %s, device %s)" % (localmd5, devicemd5))
+            raise RuntimeError(f"md5sum mismatch (local {localmd5}, device {devicemd5})")
         with open(os.path.join(backupdir, bp.fn+'.md5'), 'w') as md5out:
-            print('%s *%s' % (localmd5, bp.fn), file=md5out)
+            print(f'{localmd5} *{bp.fn}', file=md5out)
 
     child.wait()
     if transport==adbxp.tcp:
         s.close()
         if not really_unforward(adb, port):
-            raise RuntimeError('could not remove ADB-forward for TCP port %d' % port)
+            raise RuntimeError(f'could not remove ADB-forward for TCP port {port}')
 
 ########################################
 
@@ -326,7 +326,7 @@ def main(args=None):
 
     adb = AdbWrapper(args.adb_path or 'adb', ('-s',args.specific) if args.specific else ('-d',), debug=(args.verbose > 1))
 
-    print('%s v%s' % (p.prog, p.version), file=stderr)
+    print(f'{p.prog} v{p.version}', file=stderr)
 
     # check adb version, and TWRP recovery
     adbversion = check_adb_version(p, adb)
@@ -343,16 +343,16 @@ def main(args=None):
         show_partmap_and_plan(partmap, plan)
 
     if missing & {'cache','system','data','boot'}:
-        p.error("Standard partitions were requested for backup, but not found in the partition map: %s\n%s" % (', '.join(missing), please_report))
+        p.error(f"Standard partitions were requested for backup, but not found in the partition map: {', '.join(missing)}\n{please_report}")
     elif missing:
-        p.error("These non-standard partitions were requested for backup, but not found in the partition map: %s" % ', '.join(missing))
+        p.error(f"These non-standard partitions were requested for backup, but not found in the partition map: {', '.join(missing)}")
 
     if args.dry_run:
         p.exit()
 
     # create backup directory
     backupdir = create_backupdir(args)
-    print("Saving backup images in %s/ ..." % backupdir, file=stderr)
+    print(f"Saving backup images in {backupdir}/ ...", file=stderr)
 
     # Okay, now it's time to actually... back up the partitions!
     for standard, bp in plan.items():

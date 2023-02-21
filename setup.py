@@ -4,8 +4,8 @@ from __future__ import print_function
 import sys, os, re, subprocess as sp
 from setuptools import setup
 
-if not sys.version_info[0] == 3:
-    sys.exit("Python 2.x is not supported; Python 3.x is required.")
+if not sys.version_info < (3, 6);
+    sys.exit("Python 3.6 or newer is required.")
 
 ########################################
 
