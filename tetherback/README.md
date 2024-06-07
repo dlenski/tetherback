@@ -1,3 +1,12 @@
+| **IMPORTANT** |
+| ------------- |
+| This project is mostly-abandoned. |
+| - Every version of Android, and sometimes every new device, appears to do something weird to break it. |
+| - I only own one Android phone, and it's 7 years old, and on an obsolete version. |
+| - Most of the software I write is designed for **desktop Linux**. As I also noted in [another issue](https://github.com/cernekee/ics-openconnect/issues/69#issuecomment-1124478426), bug reports and other feedback from users of **Android** apps are of a ***strikingly poor quality*** in comparison. |
+| - Conclusion: I lack the motivation or ability to maintain this in any substantial way. |
+| - If you want to fork it, fork it. If you want to take over maintaining it, email me. |
+
 # tetherback
 
 Tools to create TWRP and nandroid-style backups of an Android device via a USB connection,
